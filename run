@@ -66,14 +66,14 @@ GradientDistortionCoeffs="NONE" #no gradient correction unless we are provided w
 # Process inputs and config options from app
 
 if [[ -z "${FW_INPUT_StructZip}" ]]; then
-  echo -e "$CONTAINER  INPUT_DIR has no valid StructZip files!"
+  echo -e "$CONTAINER [$(timestamp)] INPUT_DIR has no valid StructZip files!"
   exit 1
 else
   StructZipFile="${FW_INPUT_StructZip}"
 fi
 
 if [[ -z "${FW_INPUT_DWIPositiveData}" ]]; then
-  echo -e "$CONTAINER  INPUT_DIR has no valid DWIPositiveData files!"
+  echo -e "$CONTAINER [$(timestamp)] INPUT_DIR has no valid DWIPositiveData files!"
   exit 1
 else
   DWIPositiveData="${FW_INPUT_DWIPositiveData}"
@@ -82,7 +82,7 @@ else
 fi
 
 if [[ -z "${FW_INPUT_DWINegativeData}" ]]; then
-  echo -e "$CONTAINER  INPUT_DIR has no valid DWINegativeData files!"
+  echo -e "$CONTAINER [$(timestamp)] INPUT_DIR has no valid DWINegativeData files!"
   exit 1
 else
   DWINegativeData="${FW_INPUT_DWINegativeData}"
@@ -92,7 +92,7 @@ fi
 
 ###############
 # Identify additional DWI inputs pairs
-echo -e "$CONTAINER  Re-organizing diffusion input files"
+echo -e "$CONTAINER [$(timestamp)] Re-organizing diffusion input files"
 
 # where DWI file triplets (nifti,bvec,bval) will get stored 
 TMP_INPUT_DIR="${StudyFolder}/tmp_input"
@@ -107,21 +107,21 @@ pedirDWI1=$( echo "$pedirDWI1" | tr "[ijk]" "[xyz]" )
 pedirDWI2=$( echo "$pedirDWI2" | tr "[ijk]" "[xyz]" )
 
 if [[ -z "${pedirDWI1}" ]]; then
-  echo -e "$CONTAINER  ERROR: DWIPositive input data is missing PhaseEncodingDirection metadata!"
+  echo -e "$CONTAINER [$(timestamp)] ERROR: DWIPositive input data is missing PhaseEncodingDirection metadata!"
   exit 1
 elif [[ -z "${pedirDWI2}" ]]; then
-  echo -e "$CONTAINER  ERROR: DWINegative input data is missing PhaseEncodingDirection metadata!"
+  echo -e "$CONTAINER [$(timestamp)] ERROR: DWINegative input data is missing PhaseEncodingDirection metadata!"
   exit 1
 elif [[ "${pedirDWI1}" == "${pedirDWI2}" ]]; then
-  echo -e "$CONTAINER  ERROR: DWIPositiveData and DWINegativeData have the same PhaseEncodingDirection (${pedirDWI1})!"
+  echo -e "$CONTAINER [$(timestamp)] ERROR: DWIPositiveData and DWINegativeData have the same PhaseEncodingDirection (${pedirDWI1})!"
   exit 1
 fi
 
 #DWIPosList="${DWIPositiveData}"
 #DWINegList="${DWINegativeData}"
 
-echo -e "$CONTAINER  Importing $(basename ${DWIPositiveData}) as Pos1"
-echo -e "$CONTAINER  Importing $(basename ${DWINegativeData}) as Neg1"
+echo -e "$CONTAINER [$(timestamp)] Importing $(basename ${DWIPositiveData}) as Pos1"
+echo -e "$CONTAINER [$(timestamp)] Importing $(basename ${DWINegativeData}) as Neg1"
 
 DWIPosList=$( ${SCRIPT_DIR}/copy_diffusion_files.sh ${DWIPositiveData} ${DWIPositiveBvec} ${DWIPositiveBval} ${TMP_INPUT_DIR}/Pos1/data )
 DWINegList=$( ${SCRIPT_DIR}/copy_diffusion_files.sh ${DWINegativeData} ${DWINegativeBvec} ${DWINegativeBval} ${TMP_INPUT_DIR}/Neg1/data )
@@ -130,7 +130,7 @@ for i in 2 3 4 5 6 7 8 9 10; do
   tmpv1="FW_INPUT_DWIPositiveData$i"; tmpv1=${!tmpv1}
   tmpv2="FW_INPUT_DWINegativeData$i"; tmpv2=${!tmpv2}
   if [[ -e "${tmpv1}" ]] && [[ -e "${tmpv2}" ]]; then
-    echo -e "$CONTAINER  Checking DWI pair #${i}."
+    echo -e "$CONTAINER [$(timestamp)] Checking DWI pair #${i}."
           
     petmp1=$(jq -r '.inputs["DWIPositiveData'$i'"].object.info.PhaseEncodingDirection // empty' ${CONFIG_FILE})
     petmp2=$(jq -r '.inputs["DWINegativeData'$i'"].object.info.PhaseEncodingDirection // empty' ${CONFIG_FILE})
@@ -144,16 +144,16 @@ for i in 2 3 4 5 6 7 8 9 10; do
     bval2="FW_INPUT_DWINegativeBval$i"; bval2=${!bval2}
     
     if [[ -z "${bvec1}" ]]; then
-      echo -e "$CONTAINER  ERROR: DWIPositiveBvec${i} input is missing!"
+      echo -e "$CONTAINER [$(timestamp)] ERROR: DWIPositiveBvec${i} input is missing!"
       exit 1
     elif [[ -z "${bval1}" ]]; then
-      echo -e "$CONTAINER  ERROR: DWIPositiveBval${i} input is missing!"
+      echo -e "$CONTAINER [$(timestamp)] ERROR: DWIPositiveBval${i} input is missing!"
       exit 1
     elif [[ -z "${bvec2}" ]]; then
-      echo -e "$CONTAINER  ERROR: DWINegativeBvec${i} input is missing!"
+      echo -e "$CONTAINER [$(timestamp)] ERROR: DWINegativeBvec${i} input is missing!"
       exit 1
     elif [[ -z "${bval2}" ]]; then
-      echo -e "$CONTAINER  ERROR: DWINegativeBval${i} input is missing!"
+      echo -e "$CONTAINER [$(timestamp)] ERROR: DWINegativeBval${i} input is missing!"
       exit 1
     fi
         
@@ -172,22 +172,22 @@ for i in 2 3 4 5 6 7 8 9 10; do
       tmpvNeg="${tmpv1}"
       bvecNeg="${bvec1}"
       bvalNeg="${bval1}"
-      echo -e "$CONTAINER  DWI input pair #${i} phase-encoding directions (${petmp1},${petmp2}) do not match primary pair (${pedirDWI1},${pedirDWI2}). Swapping pair #${i} and continuing!"
+      echo -e "$CONTAINER [$(timestamp)] DWI input pair #${i} phase-encoding directions (${petmp1},${petmp2}) do not match primary pair (${pedirDWI1},${pedirDWI2}). Swapping pair #${i} and continuing!"
       
     elif [[ "${petmp1}" == "${petmp2}" ]]; then
-      echo -e "$CONTAINER  ERROR: DWIPositiveData${i} and DWINegativeData${i} have the same PhaseEncodingDirection (${petmp1})!"
+      echo -e "$CONTAINER [$(timestamp)] ERROR: DWIPositiveData${i} and DWINegativeData${i} have the same PhaseEncodingDirection (${petmp1})!"
       exit 1
       
     else
-      echo -e "$CONTAINER  ERROR: DWI input pair #${i} phase-encoding directions (${petmp1},${petmp2}) do not match primary pair (${pedirDWI1},${pedirDWI2}). Exiting!"
+      echo -e "$CONTAINER [$(timestamp)] ERROR: DWI input pair #${i} phase-encoding directions (${petmp1},${petmp2}) do not match primary pair (${pedirDWI1},${pedirDWI2}). Exiting!"
       exit 1
     fi
     
     #DWIPosList+="@${tmpvPos}"
     #DWINegList+="@${tmpvNeg}"
     
-    echo -e "$CONTAINER  Importing $(basename $tmpvPos) to Pos${i} ( ${tmpvPos}, ${bvecPos}, ${bvalPos} )"
-    echo -e "$CONTAINER  Importing $(basename $tmpvNeg) to Neg${i} ( ${tmpvNeg}, ${bvecNeg}, ${bvalNeg} )"
+    echo -e "$CONTAINER [$(timestamp)] Importing $(basename $tmpvPos) to Pos${i} ( ${tmpvPos}, ${bvecPos}, ${bvalPos} )"
+    echo -e "$CONTAINER [$(timestamp)] Importing $(basename $tmpvNeg) to Neg${i} ( ${tmpvNeg}, ${bvecNeg}, ${bvalNeg} )"
     
     DWIPosList+="@"$( ${SCRIPT_DIR}/copy_diffusion_files.sh ${tmpvPos} ${bvecPos} ${bvalPos} ${TMP_INPUT_DIR}/Pos${i}/data )
     DWINegList+="@"$( ${SCRIPT_DIR}/copy_diffusion_files.sh ${tmpvNeg} ${bvecNeg} ${bvalNeg} ${TMP_INPUT_DIR}/Neg${i}/data )
@@ -201,7 +201,7 @@ StructConfigFile="hcpstruct_config.json"
 unzip -p ${StructZipFile} '*hcpstruct_config.json' > ${StructConfigFile}
 hcpstruct_Subject=$(jq -r '.config.Subject // empty' ${StructConfigFile})
 if [[ -z "${hcpstruct_Subject}" ]]; then
-  echo -e "$CONTAINER  ${StructZipFile} did not contain ${StructConfigFile}!"
+  echo -e "$CONTAINER [$(timestamp)] ${StructZipFile} did not contain ${StructConfigFile}!"
   exit 1
 fi
 
@@ -229,7 +229,7 @@ else
 fi
 
 if [[ -z "${FW_CONFIG_DWIName}" ]]; then
-  echo -e "$CONTAINER  fMRIName cannot be empty!"
+  echo -e "$CONTAINER [$(timestamp)] fMRIName cannot be empty!"
   exit 1
 else
   # Output name (and prefix) for preprocessed data
@@ -243,7 +243,7 @@ case "${DOF_EPI2T1}" in
     #nothing
     ;;
   *)
-    echo -e "$CONTAINER  AnatomyRegDOF must be 6 or 12!"
+    echo -e "$CONTAINER [$(timestamp)] AnatomyRegDOF must be 6 or 12!"
     exit 1
     ;;
 esac
@@ -268,10 +268,10 @@ elif [[ "${pedirDWI1},${pedirDWI2}" == "y-,y" ]]; then
 elif [[ "${pedirDWI1},${pedirDWI2}" == "y,y-" ]]; then
   PEdir=2
 elif [[ "$pedirDWI1" == "$pedirDWI2" ]]; then
-  echo -e "$CONTAINER  DWIPositive and DWINegative must have opposite phase-encoding directions"
+  echo -e "$CONTAINER [$(timestamp)] DWIPositive and DWINegative must have opposite phase-encoding directions"
   exit 1
 else
-  echo -e "$CONTAINER  DWIPositive and DWINegative have unrecognized phase-encoding directions"
+  echo -e "$CONTAINER [$(timestamp)] DWIPositive and DWINegative have unrecognized phase-encoding directions"
   exit 1
 fi
 
