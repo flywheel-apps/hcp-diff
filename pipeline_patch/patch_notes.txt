@@ -1,0 +1,2 @@
+* Customized version of DiffusionPreprocessing scripts to accept a "--eddy-non-gpu" flag, allowing pipeline to execute non-GPU version of eddy (eddy_openmp).
+* Current diffusion pipeline uses HCP pipeline commit 90b0766636ba83f06c9198206cc7fa90117b0b11 (8/24/2017) to avoid some bugs, so these scripts are modified from that version

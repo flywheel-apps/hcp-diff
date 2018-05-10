@@ -1,0 +1,410 @@
+#! /bin/bash
+#
+# Run script for flywheel/hcp-diff Gear.
+#
+# Authorship: Keith Jamison
+#
+
+##############################################################################
+# Define directory names and containers
+
+FLYWHEEL_BASE=/flywheel/v0
+INPUT_DIR=$FLYWHEEL_BASE/input
+OUTPUT_DIR=$FLYWHEEL_BASE/output
+SCRIPT_DIR=${FLYWHEEL_BASE}/scripts
+SCENE_DIR=${FLYWHEEL_BASE}/scenes
+CONFIG_FILE=$FLYWHEEL_BASE/config.json
+CONTAINER='[flywheel/hcp-diff]'
+
+source ${FLYWHEEL_BASE}/docker-env.sh
+
+source ${SCRIPT_DIR}/bash_functions.sh # some useful tools
+
+##############################################################################
+# Parse configuration options
+
+# If config.json exists, then we parse config file and cast vals to ENV Vars
+# (Flywheel gear run). Otherwise we parse manifest.json and cast the values to
+# ENV Vars from manifest (Docker run) Note value.default is used to grab the
+# configured defaults.
+
+if [[ -f $CONFIG_FILE ]]; then
+  eval $(jq -r '.config | to_entries[] | "FW_CONFIG_\(.key)=\(.value)"' $CONFIG_FILE)
+  eval $(jq -r '.inputs | to_entries[] | "FW_INPUT_\(.key)=\(.value.location.path)"' $CONFIG_FILE)
+else
+  CONFIG_FILE=$FLYWHEEL_BASE/manifest.json
+  eval $(jq -r '.config | to_entries[] | "FW_CONFIG_\(.key)=\(.value.default)"' $CONFIG_FILE)
+fi
+
+##############################################################################
+# use "echo" for testing arguments without running scripts
+RUN_DIFF=""
+RUN_QC=""
+
+##############################################################################
+# Set some pipeline defaults
+
+source ${SCRIPT_DIR}/SetUpHCPPipeline.sh
+
+StudyFolder=${OUTPUT_DIR}
+
+PRINTCOM=""
+QUEUE=""
+
+LogFileDir=logs
+LogFileDirFull=${OUTPUT_DIR}/${LogFileDir}
+mkdir -p ${LogFileDirFull}
+FSLSUBOPTIONS="-l ${LogFileDirFull}"
+
+#Default Config Settings
+UnwarpDir="" #must be correctly derived from metadata
+DwellTime="NONE" # DwellTime for DWI volumes
+
+GradientDistortionCoeffs="NONE" #no gradient correction unless we are provided with a .grad file 
+
+#######################################
+# Process inputs and config options from app
+
+if [[ -z "${FW_INPUT_StructZip}" ]]; then
+  echo -e "$CONTAINER  INPUT_DIR has no valid StructZip files!"
+  exit 1
+else
+  StructZipFile="${FW_INPUT_StructZip}"
+fi
+
+if [[ -z "${FW_INPUT_DWIPositiveData}" ]]; then
+  echo -e "$CONTAINER  INPUT_DIR has no valid DWIPositiveData files!"
+  exit 1
+else
+  DWIPositiveData="${FW_INPUT_DWIPositiveData}"
+  DWIPositiveBvec="${FW_INPUT_DWIPositiveBvec}"
+  DWIPositiveBval="${FW_INPUT_DWIPositiveBval}"
+fi
+
+if [[ -z "${FW_INPUT_DWINegativeData}" ]]; then
+  echo -e "$CONTAINER  INPUT_DIR has no valid DWINegativeData files!"
+  exit 1
+else
+  DWINegativeData="${FW_INPUT_DWINegativeData}"
+  DWINegativeBvec="${FW_INPUT_DWINegativeBvec}"
+  DWINegativeBval="${FW_INPUT_DWINegativeBval}"
+fi
+
+###############
+# Identify additional DWI inputs pairs
+echo -e "$CONTAINER  Re-organizing diffusion input files"
+
+# where DWI file triplets (nifti,bvec,bval) will get stored 
+TMP_INPUT_DIR="${StudyFolder}/tmp_input"
+mkdir -p ${TMP_INPUT_DIR}
+
+# check PE dir for first input pair to make sure additional pairs match
+# TODO: check to see if primary DWIPos and DWINeg need to be swapped?
+
+pedirDWI1=$(jq -r '.inputs["DWIPositiveData"].object.info.PhaseEncodingDirection // empty' ${CONFIG_FILE})
+pedirDWI2=$(jq -r '.inputs["DWINegativeData"].object.info.PhaseEncodingDirection // empty' ${CONFIG_FILE})
+pedirDWI1=$( echo "$pedirDWI1" | tr "[ijk]" "[xyz]" )
+pedirDWI2=$( echo "$pedirDWI2" | tr "[ijk]" "[xyz]" )
+
+if [[ -z "${pedirDWI1}" ]]; then
+  echo -e "$CONTAINER  ERROR: DWIPositive input data is missing PhaseEncodingDirection metadata!"
+  exit 1
+elif [[ -z "${pedirDWI2}" ]]; then
+  echo -e "$CONTAINER  ERROR: DWINegative input data is missing PhaseEncodingDirection metadata!"
+  exit 1
+elif [[ "${pedirDWI1}" == "${pedirDWI2}" ]]; then
+  echo -e "$CONTAINER  ERROR: DWIPositiveData and DWINegativeData have the same PhaseEncodingDirection (${pedirDWI1})!"
+  exit 1
+fi
+
+#DWIPosList="${DWIPositiveData}"
+#DWINegList="${DWINegativeData}"
+
+echo -e "$CONTAINER  Importing $(basename ${DWIPositiveData}) as Pos1"
+echo -e "$CONTAINER  Importing $(basename ${DWINegativeData}) as Neg1"
+
+DWIPosList=$( ${SCRIPT_DIR}/copy_diffusion_files.sh ${DWIPositiveData} ${DWIPositiveBvec} ${DWIPositiveBval} ${TMP_INPUT_DIR}/Pos1/data )
+DWINegList=$( ${SCRIPT_DIR}/copy_diffusion_files.sh ${DWINegativeData} ${DWINegativeBvec} ${DWINegativeBval} ${TMP_INPUT_DIR}/Neg1/data )
+
+for i in 2 3 4 5 6 7 8 9 10; do
+  tmpv1="FW_INPUT_DWIPositiveData$i"; tmpv1=${!tmpv1}
+  tmpv2="FW_INPUT_DWINegativeData$i"; tmpv2=${!tmpv2}
+  if [[ -e "${tmpv1}" ]] && [[ -e "${tmpv2}" ]]; then
+    echo -e "$CONTAINER  Checking DWI pair #${i}."
+          
+    petmp1=$(jq -r '.inputs["DWIPositiveData'$i'"].object.info.PhaseEncodingDirection // empty' ${CONFIG_FILE})
+    petmp2=$(jq -r '.inputs["DWINegativeData'$i'"].object.info.PhaseEncodingDirection // empty' ${CONFIG_FILE})
+    petmp1=$( echo "$petmp1" | tr "[ijk]" "[xyz]" )
+    petmp2=$( echo "$petmp2" | tr "[ijk]" "[xyz]" )
+    
+    bvec1="FW_INPUT_DWIPositiveBvec$i"; bvec1=${!bvec1}
+    bval1="FW_INPUT_DWIPositiveBval$i"; bval1=${!bval1}
+    
+    bvec2="FW_INPUT_DWINegativeBvec$i"; bvec2=${!bvec2}
+    bval2="FW_INPUT_DWINegativeBval$i"; bval2=${!bval2}
+    
+    if [[ -z "${bvec1}" ]]; then
+      echo -e "$CONTAINER  ERROR: DWIPositiveBvec${i} input is missing!"
+      exit 1
+    elif [[ -z "${bval1}" ]]; then
+      echo -e "$CONTAINER  ERROR: DWIPositiveBval${i} input is missing!"
+      exit 1
+    elif [[ -z "${bvec2}" ]]; then
+      echo -e "$CONTAINER  ERROR: DWINegativeBvec${i} input is missing!"
+      exit 1
+    elif [[ -z "${bval2}" ]]; then
+      echo -e "$CONTAINER  ERROR: DWINegativeBval${i} input is missing!"
+      exit 1
+    fi
+        
+    if [[ "${pedirDWI1},${pedirDWI2}" == "${petmp1},${petmp2}" ]]; then
+      tmpvPos="${tmpv1}"
+      bvecPos="${bvec1}"
+      bvalPos="${bval1}"
+      tmpvNeg="${tmpv2}"
+      bvecNeg="${bvec2}"
+      bvalNeg="${bval2}"
+      
+    elif [[ "${pedirDWI1},${pedirDWI2}" == "${petmp2},${petmp1}" ]]; then
+      tmpvPos="${tmpv2}"
+      bvecPos="${bvec2}"
+      bvalPos="${bval2}"
+      tmpvNeg="${tmpv1}"
+      bvecNeg="${bvec1}"
+      bvalNeg="${bval1}"
+      echo -e "$CONTAINER  DWI input pair #${i} phase-encoding directions (${petmp1},${petmp2}) do not match primary pair (${pedirDWI1},${pedirDWI2}). Swapping pair #${i} and continuing!"
+      
+    elif [[ "${petmp1}" == "${petmp2}" ]]; then
+      echo -e "$CONTAINER  ERROR: DWIPositiveData${i} and DWINegativeData${i} have the same PhaseEncodingDirection (${petmp1})!"
+      exit 1
+      
+    else
+      echo -e "$CONTAINER  ERROR: DWI input pair #${i} phase-encoding directions (${petmp1},${petmp2}) do not match primary pair (${pedirDWI1},${pedirDWI2}). Exiting!"
+      exit 1
+    fi
+    
+    #DWIPosList+="@${tmpvPos}"
+    #DWINegList+="@${tmpvNeg}"
+    
+    echo -e "$CONTAINER  Importing $(basename $tmpvPos) to Pos${i} ( ${tmpvPos}, ${bvecPos}, ${bvalPos} )"
+    echo -e "$CONTAINER  Importing $(basename $tmpvNeg) to Neg${i} ( ${tmpvNeg}, ${bvecNeg}, ${bvalNeg} )"
+    
+    DWIPosList+="@"$( ${SCRIPT_DIR}/copy_diffusion_files.sh ${tmpvPos} ${bvecPos} ${bvalPos} ${TMP_INPUT_DIR}/Pos${i}/data )
+    DWINegList+="@"$( ${SCRIPT_DIR}/copy_diffusion_files.sh ${tmpvNeg} ${bvecNeg} ${bvalNeg} ${TMP_INPUT_DIR}/Neg${i}/data )
+  fi
+done
+
+###############
+
+# Extract some info from .json saved in hcpstruct zip file
+StructConfigFile="hcpstruct_config.json"
+unzip -p ${StructZipFile} '*hcpstruct_config.json' > ${StructConfigFile}
+hcpstruct_Subject=$(jq -r '.config.Subject // empty' ${StructConfigFile})
+if [[ -z "${hcpstruct_Subject}" ]]; then
+  echo -e "$CONTAINER  ${StructZipFile} did not contain ${StructConfigFile}!"
+  exit 1
+fi
+
+
+if [[ -e "${FW_INPUT_GradientCoeff}" ]]; then
+  GradientDistortionCoeffs="${FW_INPUT_GradientCoeff}"
+  #TODO: add "siemens" vs "GE" to pipeline for gradient unwarping
+  #GradientDistortionCoeffs_vendor="siemens"
+fi
+
+
+# Install FreeSurfer license
+if [[ -e "${FW_INPUT_FreeSurferLicense}" ]]; then
+  echo -e "$CONTAINER Copying user-supplied FreeSurfer license file to ${FREESURFER_HOME}/license.txt"
+  cp -f "${FW_INPUT_FreeSurferLicense}" ${FREESURFER_HOME}/license.txt
+fi
+
+
+#Maybe make the field Subject_Override, and use logic like:
+#????
+if [[ -z "${FW_CONFIG_Subject}" ]] || [[ $(toupper "${FW_CONFIG_Subject}") = "EMPTY" ]]; then
+  Subject="${hcpstruct_Subject}"
+else
+  Subject="${FW_CONFIG_Subject}"
+fi
+
+if [[ -z "${FW_CONFIG_DWIName}" ]]; then
+  echo -e "$CONTAINER  fMRIName cannot be empty!"
+  exit 1
+else
+  # Output name (and prefix) for preprocessed data
+  DWIName="${FW_CONFIG_DWIName}"
+fi
+
+
+DOF_EPI2T1="${FW_CONFIG_AnatomyRegDOF}"
+case "${DOF_EPI2T1}" in
+  6|12)
+    #nothing
+    ;;
+  *)
+    echo -e "$CONTAINER  AnatomyRegDOF must be 6 or 12!"
+    exit 1
+    ;;
+esac
+
+
+# Read necessary acquisition params from fMRI
+DwellTime=$(print_decimal_number $(jq -r '.inputs["DWIPositiveData"].object.info.EffectiveEchoSpacing // empty' ${CONFIG_FILE}))
+DwellTime=$( echo "scale=6; ${DwellTime}*1000" | bc -l ) #CONVERT TO MILLISECONDS FOR DIFFUSION!
+
+# Set PEdir variable based on phase-encoding directions
+pedirDWI1=$(jq -r '.inputs["DWIPositiveData"].object.info.PhaseEncodingDirection // empty' ${CONFIG_FILE})
+pedirDWI2=$(jq -r '.inputs["DWINegativeData"].object.info.PhaseEncodingDirection // empty' ${CONFIG_FILE})
+pedirDWI1=$( echo "$pedirDWI1" | tr "[ijk]" "[xyz]" )
+pedirDWI2=$( echo "$pedirDWI2" | tr "[ijk]" "[xyz]" )
+
+if [[ "${pedirDWI1},${pedirDWI2}" == "x-,x" ]]; then
+  PEdir=1
+elif [[ "${pedirDWI1},${pedirDWI2}" == "x,x-" ]]; then
+  PEdir=1
+elif [[ "${pedirDWI1},${pedirDWI2}" == "y-,y" ]]; then
+  PEdir=2
+elif [[ "${pedirDWI1},${pedirDWI2}" == "y,y-" ]]; then
+  PEdir=2
+elif [[ "$pedirDWI1" == "$pedirDWI2" ]]; then
+  echo -e "$CONTAINER  DWIPositive and DWINegative must have opposite phase-encoding directions"
+  exit 1
+else
+  echo -e "$CONTAINER  DWIPositive and DWINegative have unrecognized phase-encoding directions"
+  exit 1
+fi
+
+# Some options that may become user-specified in the future, but use standard HCP values for now
+b0maxbval="100"                                   # Cutoff for considering a volume "b0", generally b<10, but for 7T data they are b<70
+
+CombineDataFlag="1"   #Specified value is passed as the CombineDataFlag value for the eddy_postproc.sh script.
+#If JAC resampling has been used in eddy, this value 
+#determines what to do with the output file.
+#2 - include in the output all volumes uncombined (i.e.
+#    output file of eddy)
+#1 - include in the output and combine only volumes 
+#    where both LR/RL (or AP/PA) pairs have been 
+#    acquired
+#0 - As 1, but also include uncombined single volumes
+#Defaults to 1
+
+ExtraEddyArgs=""
+
+#echo -e "${CONTAINER} [$(timestamp)] Input file listing:"
+#find ${INPUT_DIR}/ -type f
+#echo -e "${CONTAINER} [$(timestamp)] Re-organized DWI file listing:"
+#find ${TMP_INPUT_DIR}/ -type f
+
+################################################################################
+# Unzip HCP-Structural outputs
+
+echo -e "${CONTAINER} [$(timestamp)] Unzipping HCP-Structural zip"
+unzip -q ${StructZipFile} -d ${StudyFolder}
+
+# save list of files extracted from hcpstruct zip so we can remove them from output
+# (specifically, list of ALL files that exist in OUTPUT_DIR at this point)
+FilesToRemove=${OUTPUT_DIR}/to_delete.txt
+( cd ${StudyFolder}; find ${Subject}/ -type f ) > ${FilesToRemove}
+
+################################################################################
+# Run DiffProcessingPipeline.sh
+
+echo -e "${CONTAINER} [$(timestamp)] Starting: Diffusion Preprocessing Pipeline (topup, eddy, registration)"
+
+pipeline_status_code=0
+
+set -x
+${RUN_DIFF} ${FSLDIR}/bin/fsl_sub ${QUEUE} ${FSLSUBOPTIONS} \
+   ${HCPPIPEDIR}/DiffusionPreprocessing/DiffPreprocPipeline.sh \
+    --path="${StudyFolder}" \
+    --subject="${Subject}" \
+    --dwiname="${DWIName}" \
+    --posData="${DWIPosList}" \
+    --negData="${DWINegList}" \
+    --PEdir="${PEdir}" \
+    --echospacing="${DwellTime}" \
+    --gdcoeffs="${GradientDistortionCoeffs}" \
+    --dof="${DOF_EPI2T1}" \
+    --b0maxbval="${b0maxbval}" \
+    --combine-data-flag="${CombineDataFlag}" \
+    --extra-eddy-arg="${ExtraEddyArgs}" \
+    --eddy-non-gpu \
+    --printcom=$PRINTCOM
+set +x
+
+pipeline_status_code=$?
+
+if [[ $pipeline_status_code == 0 ]]; then
+  echo -e "${CONTAINER} [$(timestamp)] Diffusion Preprocessing Pipeline Success!"
+else
+  echo -e "${CONTAINER} [$(timestamp)] Diffusion Preprocessing Pipeline Failure!"
+  exit 1
+fi
+
+
+################################################################################
+# Generate HCP-Diffusion QC Images
+
+echo -e "${CONTAINER} [$(timestamp)] Starting: Diffusion QC Image Generation"
+
+qc_scene_root="${StudyFolder}/${Subject}"
+
+qc_outputdir="${StudyFolder}"
+mkdir -p ${qc_outputdir}
+
+qc_image_root="${qc_outputdir}/${Subject}_${DWIName}.hcpdiff_QC."
+
+set -x
+${RUN_QC} ${SCRIPT_DIR}/hcpdiff_qc_mosaic.sh \
+  ${qc_scene_root} \
+  ${DWIName} \
+  ${qc_image_root} > ${LogFileDir}/diffusionqc.log
+
+set +x
+
+################################################################################
+# Clean-up and prepare outputs
+
+# Delete temporary input files (re-organized DWI inputs)
+rm -rf "${TMP_INPUT_DIR}"
+
+# Delete files that came from the HCP-Structural zip input
+cd ${StudyFolder}
+for f in $(cat ${FilesToRemove}); do
+  rm -f $f
+done
+rm -f ${FilesToRemove}
+
+# Add current gear config.json to output for reference in subsequent gears
+# - For now, don't copy full input json since it might contain identifiers from DICOM etc
+# - add/update .config.RegName since it might not have been included in config (pre-MSM availability)
+# - add/update .config.Subject since it might later be pulled from other session metadata
+# - This jq call does the value replacement, then selects just .config but stores it back into a 
+#    new element called ".config" so the new file can be read as though it was flywheel config.json
+OUTPUT_CONFIG_FILE=${StudyFolder}/${Subject}/${Subject}_${DWIName}_hcpdiff_config.json 
+jq -r '.config.Subject = "'$Subject'" | .config | {config: .}' $CONFIG_FILE > ${OUTPUT_CONFIG_FILE}
+
+# If pipeline successful, zip outputs and clean up
+outputzipname=${Subject}_${DWIName}_hcpdiff.zip 
+echo -e "${CONTAINER} [$(timestamp)] Zipping output file ${outputzipname}"
+ziplistfile=${OUTPUT_DIR}/${outputzipname}.list.txt
+rm -f ${ziplistfile} 
+rm -f ${OUTPUT_DIR}/${outputzipname}
+cd ${StudyFolder}
+# include all remaining files in functional output zip
+find ${Subject} -type f > ${ziplistfile}
+cat ${ziplistfile} | zip ${OUTPUT_DIR}/${outputzipname} -@ > ${OUTPUT_DIR}/${outputzipname}.log
+rm -f ${ziplistfile}
+
+# zip pipeline logs
+logzipname=pipeline_logs.zip
+echo -e "${CONTAINER} [$(timestamp)] Zipping pipeline logs to ${logzipname}"
+cd ${OUTPUT_DIR}
+zip -r ${OUTPUT_DIR}/${logzipname} ${LogFileDir}/ > ${OUTPUT_DIR}/${logzipname}.log
+
+echo -e "${CONTAINER} [$(timestamp)] Cleaning output directory"
+rm -rf ${StudyFolder}/${Subject}/
+rm -rf ${LogFileDirFull}/
+
+exit $pipeline_status_code
