@@ -23,7 +23,7 @@ RUN apt-get update \
 # Download and install FreeSurfer
 RUN apt-get -y update \
     && apt-get install -y wget && \
-    wget -qO- ftp://surfer.nmr.mgh.harvard.edu/pub/dist/freesurfer/5.3.0-HCP/freesurfer-Linux-centos4_x86_64-stable-pub-v5.3.0-HCP.tar.gz | tar zxv -C /opt \
+    wget -nv -O- ftp://surfer.nmr.mgh.harvard.edu/pub/dist/freesurfer/5.3.0-HCP/freesurfer-Linux-centos4_x86_64-stable-pub-v5.3.0-HCP.tar.gz | tar zxv -C /opt \
     --exclude='freesurfer/trctrain' \
     --exclude='freesurfer/subjects/fsaverage_sym' \
     --exclude='freesurfer/subjects/fsaverage3' \
@@ -95,7 +95,7 @@ ENV FSLOUTPUTTYPE=NIFTI_GZ
 #   possibly unlock those features with an additional pipeline patch (modifying run_eddy.sh)
 RUN apt-get -y update && \
     apt-get install -y wget && \
-    wget https://fsl.fmrib.ox.ac.uk/fsldownloads/patches/eddy-patch-fsl-5.0.11/centos6/eddy_openmp -O eddy_openmp && \
+    wget -nv https://fsl.fmrib.ox.ac.uk/fsldownloads/patches/eddy-patch-fsl-5.0.11/centos6/eddy_openmp -O eddy_openmp && \
     chmod +x eddy_openmp && \
     mv eddy_openmp ${FSLDIR}/bin/ && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
@@ -136,7 +136,7 @@ RUN apt-get -y update \
     apt-get install -y --no-install-recommends python-numpy && \
     apt-get install -y --no-install-recommends python-scipy && \
     apt-get install -y --no-install-recommends python-nibabel && \
-    wget https://github.com/Washington-University/gradunwarp/archive/bab8930e37f1b8ad3a7e274b07c5b3f0f096be85.tar.gz -O gradunwarp.tar.gz && \
+    wget -nv https://github.com/Washington-University/gradunwarp/archive/bab8930e37f1b8ad3a7e274b07c5b3f0f096be85.tar.gz -O gradunwarp.tar.gz && \
     cd /opt/ && \
     tar zxvf /gradunwarp.tar.gz && \
     mv /opt/gradunwarp-* /opt/gradunwarp && \
@@ -154,7 +154,7 @@ RUN apt-get -y update \
 #Need to use this 2017-08-24 commit to fix bugs in v4.0.0-alpha.5: 90b0766636ba83f06c9198206cc7fa90117b0b11
 RUN apt-get -y update \
     && apt-get install -y --no-install-recommends python-numpy && \
-    wget https://github.com/Washington-University/Pipelines/archive/90b0766636ba83f06c9198206cc7fa90117b0b11.tar.gz -O pipelines.tar.gz && \
+    wget -nv https://github.com/Washington-University/Pipelines/archive/90b0766636ba83f06c9198206cc7fa90117b0b11.tar.gz -O pipelines.tar.gz && \
     cd /opt/ && \
     tar zxvf /pipelines.tar.gz && \
     mv /opt/Pipelines-* /opt/HCP-Pipelines && \
