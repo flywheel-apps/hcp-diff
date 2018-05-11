@@ -57,10 +57,27 @@ mkdir -p ${LogFileDirFull}
 FSLSUBOPTIONS="-l ${LogFileDirFull}"
 
 #Default Config Settings
-UnwarpDir="" #must be correctly derived from metadata
 DwellTime="NONE" # DwellTime for DWI volumes
-
 GradientDistortionCoeffs="NONE" #no gradient correction unless we are provided with a .grad file 
+
+
+# Some options that may become user-specified in the future, but use standard HCP values for now
+b0maxbval="100"                                   # Cutoff for considering a volume "b0", generally b<10, but for 7T data they are b<70
+
+CombineDataFlag="1"   #Specified value is passed as the CombineDataFlag value for the eddy_postproc.sh script.
+#If JAC resampling has been used in eddy, this value 
+#determines what to do with the output file.
+#2 - include in the output all volumes uncombined (i.e.
+#    output file of eddy)
+#1 - include in the output and combine only volumes 
+#    where both LR/RL (or AP/PA) pairs have been 
+#    acquired
+#0 - As 1, but also include uncombined single volumes
+#Defaults to 1
+
+ExtraEddyArgs=""
+
+EddyNonGpuArg="--eddy-non-gpu"   #new flag to force use of non-gpu version of eddy
 
 #######################################
 # Process inputs and config options from app
@@ -259,13 +276,9 @@ pedirDWI2=$(jq -r '.inputs["DWINegativeData"].object.info.PhaseEncodingDirection
 pedirDWI1=$( echo "$pedirDWI1" | tr "[ijk]" "[xyz]" )
 pedirDWI2=$( echo "$pedirDWI2" | tr "[ijk]" "[xyz]" )
 
-if [[ "${pedirDWI1},${pedirDWI2}" == "x-,x" ]]; then
+if [[ "${pedirDWI1},${pedirDWI2}" == "x-,x" ]] || [[ "${pedirDWI1},${pedirDWI2}" == "x,x-" ]]; then
   PEdir=1
-elif [[ "${pedirDWI1},${pedirDWI2}" == "x,x-" ]]; then
-  PEdir=1
-elif [[ "${pedirDWI1},${pedirDWI2}" == "y-,y" ]]; then
-  PEdir=2
-elif [[ "${pedirDWI1},${pedirDWI2}" == "y,y-" ]]; then
+elif [[ "${pedirDWI1},${pedirDWI2}" == "y-,y" ]] || [[ "${pedirDWI1},${pedirDWI2}" == "y,y-" ]]; then
   PEdir=2
 elif [[ "$pedirDWI1" == "$pedirDWI2" ]]; then
   echo -e "$CONTAINER [$(timestamp)] DWIPositive and DWINegative must have opposite phase-encoding directions"
@@ -274,27 +287,6 @@ else
   echo -e "$CONTAINER [$(timestamp)] DWIPositive and DWINegative have unrecognized phase-encoding directions"
   exit 1
 fi
-
-# Some options that may become user-specified in the future, but use standard HCP values for now
-b0maxbval="100"                                   # Cutoff for considering a volume "b0", generally b<10, but for 7T data they are b<70
-
-CombineDataFlag="1"   #Specified value is passed as the CombineDataFlag value for the eddy_postproc.sh script.
-#If JAC resampling has been used in eddy, this value 
-#determines what to do with the output file.
-#2 - include in the output all volumes uncombined (i.e.
-#    output file of eddy)
-#1 - include in the output and combine only volumes 
-#    where both LR/RL (or AP/PA) pairs have been 
-#    acquired
-#0 - As 1, but also include uncombined single volumes
-#Defaults to 1
-
-ExtraEddyArgs=""
-
-#echo -e "${CONTAINER} [$(timestamp)] Input file listing:"
-#find ${INPUT_DIR}/ -type f
-#echo -e "${CONTAINER} [$(timestamp)] Re-organized DWI file listing:"
-#find ${TMP_INPUT_DIR}/ -type f
 
 ################################################################################
 # Unzip HCP-Structural outputs
@@ -328,8 +320,7 @@ ${RUN_DIFF} ${FSLDIR}/bin/fsl_sub ${QUEUE} ${FSLSUBOPTIONS} \
     --dof="${DOF_EPI2T1}" \
     --b0maxbval="${b0maxbval}" \
     --combine-data-flag="${CombineDataFlag}" \
-    --extra-eddy-arg="${ExtraEddyArgs}" \
-    --eddy-non-gpu \
+    --extra-eddy-arg="${ExtraEddyArgs}" ${EddyNonGpuArg} \
     --printcom=$PRINTCOM
 set +x
 
@@ -341,7 +332,6 @@ else
   echo -e "${CONTAINER} [$(timestamp)] Diffusion Preprocessing Pipeline Failure!"
   exit 1
 fi
-
 
 ################################################################################
 # Generate HCP-Diffusion QC Images
@@ -359,7 +349,7 @@ set -x
 ${RUN_QC} ${SCRIPT_DIR}/hcpdiff_qc_mosaic.sh \
   ${qc_scene_root} \
   ${DWIName} \
-  ${qc_image_root} > ${LogFileDir}/diffusionqc.log
+  ${qc_image_root} > ${LogFileDirFull}/diffusionqc.log
 
 set +x
 
