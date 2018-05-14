@@ -21,6 +21,11 @@
         ]
       }
     },
+    "FreeSurferLicense": {
+      "description": "FreeSurfer license.txt file (found in $FREESURFER_HOME/license.txt)",
+      "base": "file",
+      "optional": false
+    },
     "DWIPositiveData": {
       "description": "Diffusion time series (Positive phase-encode, ie: R>>L or P>>A)",
       "base": "file",
@@ -259,11 +264,6 @@
       "description": "Scanner gradient nonlinearity coefficient file",
       "base": "file",
       "optional": true
-    },
-    "FreeSurferLicense": {
-      "description": "FreeSurfer license.txt file (found in $FREESURFER_HOME/license.txt)",
-      "base": "file",
-      "optional": false
     }
   },
   "config": {
