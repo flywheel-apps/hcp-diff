@@ -304,6 +304,9 @@ FilesToRemove=${OUTPUT_DIR}/to_delete.txt
 
 echo -e "${CONTAINER} [$(timestamp)] Starting: Diffusion Preprocessing Pipeline (topup, eddy, registration)"
 
+#Option to restrict the number of threads for eddy_openmp
+#export OMP_NUM_THREADS=1
+
 pipeline_status_code=0
 
 set -x
