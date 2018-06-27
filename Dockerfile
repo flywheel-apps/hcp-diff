@@ -61,7 +61,7 @@ ENV PATH /opt/freesurfer/bin:/opt/freesurfer/fsfast/bin:/opt/freesurfer/tktools:
 #############################################
 # Download and install FSL 5.0.9
 
-#Build-time key retrieval is sometimes unable to connect to keyserver.  Instead, download the public key manually and store it in plaintext 
+#Build-time key retrieval is sometimes unable to connect to keyserver.  Instead, download the public key manually and store it in plaintext
 #within repo.  You should run these commands occassionally to make sure the saved public key is up to date:
 #gpg --keyserver hkp://pgp.mit.edu:80  --recv 0xA5D32F012649A5A9 && \
 #gpg --export --armor 0xA5D32F012649A5A9 > neurodebian_pgpkey.txt && \
@@ -91,7 +91,7 @@ ENV FSLOUTPUTTYPE=NIFTI_GZ
 
 # Download updated eddy binary (this centos6 version is verified to be compatible with with ubuntu 14.04)
 # Neurodebian FSL 5.0.9 non-free includes "eddy" binary, but the newer "eddy_openmp" is expected in the pipeline
-# Note: eddy_openmp 5.0.11 includes the new options that the current pipeline will only use with eddy_cuda, but we can 
+# Note: eddy_openmp 5.0.11 includes the new options that the current pipeline will only use with eddy_cuda, but we can
 #   possibly unlock those features with an additional pipeline patch (modifying run_eddy.sh)
 RUN apt-get -y update && \
     apt-get install -y wget && \
@@ -109,7 +109,7 @@ RUN apt-get -y update && \
 #    python fslinstaller.py --dest=/usr/local/fsl --fslversion=5.0.11 && \
 #    . /usr/share/fsl/5.0/etc/fslconf/fsl.sh && \
 #    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
-#    
+#
 #ENV FSLDIR=/usr/local/fsl
 #ENV FSL_DIR="${FSLDIR}"
 #ENV PATH=${FSLDIR}/bin:$PATH
@@ -157,7 +157,7 @@ RUN apt-get -y update \
     wget -nv https://github.com/Washington-University/Pipelines/archive/90b0766636ba83f06c9198206cc7fa90117b0b11.tar.gz -O pipelines.tar.gz && \
     cd /opt/ && \
     tar zxvf /pipelines.tar.gz && \
-    mv /opt/Pipelines-* /opt/HCP-Pipelines && \
+    mv /opt/*ipelines* /opt/HCP-Pipelines && \
     rm /pipelines.tar.gz && \
     cd / && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
