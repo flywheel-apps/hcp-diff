@@ -1,3 +1,5 @@
+[![Docker Pulls](https://img.shields.io/docker/pulls/flywheel/hcp-diff.svg)](https://hub.docker.com/r/flywheel/hcp-diff/)
+[![Docker Stars](https://img.shields.io/docker/stars/flywheel/hcp-diff.svg)](https://hub.docker.com/r/flywheel/hcp-diff/)
 # flywheel/hcp-diff
 [Flywheel Gear](https://github.com/flywheel-io/gears/tree/master/spec) that runs the diffusion preprocessing steps of the [Human Connectome Project](http://www.humanconnectome.org) Minimal Preprocessing Pipeline (MPP) described in [Glasser et al. 2013](http://www.ncbi.nlm.nih.gov/pubmed/23668970).  This includes correction for EPI distortion (using [FSL topup](https://fsl.fmrib.ox.ac.uk/fsl/fslwiki/topup/TopupUsersGuide)), correction for motion and eddy-current distortion (using [FSL eddy](https://fsl.fmrib.ox.ac.uk/fsl/fslwiki/eddy)), and registration to subject anatomy. The *output of* this gear can serve as the *input* for diffusion modeling (eg: bedpostx) and tractography. For more info on the pipelines, see [HCP Pipelines](https://github.com/Washington-University/Pipelines).
 
