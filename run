@@ -231,6 +231,7 @@ unzip -p ${StructZipFile} '*hcpstruct_config.json' > ${StructConfigFile}
 hcpstruct_Subject=$(jq -r '.config.Subject // empty' ${StructConfigFile})
 if [[ -z "${hcpstruct_Subject}" ]]; then
   echo -e "$CONTAINER [$(timestamp)] ${StructZipFile} did not contain ${StructConfigFile}!"
+  cleanup
   exit 1
 fi
 
@@ -259,6 +260,7 @@ fi
 
 if [[ -z "${FW_CONFIG_DWIName}" ]]; then
   echo -e "$CONTAINER [$(timestamp)] fMRIName cannot be empty!"
+  cleanup
   exit 1
 else
   # Output name (and prefix) for preprocessed data
@@ -273,6 +275,7 @@ case "${DOF_EPI2T1}" in
     ;;
   *)
     echo -e "$CONTAINER [$(timestamp)] AnatomyRegDOF must be 6 or 12!"
+    cleanup
     exit 1
     ;;
 esac
@@ -294,9 +297,11 @@ elif [[ "${pedirDWI1},${pedirDWI2}" == "y-,y" ]] || [[ "${pedirDWI1},${pedirDWI2
   PEdir=2
 elif [[ "$pedirDWI1" == "$pedirDWI2" ]]; then
   echo -e "$CONTAINER [$(timestamp)] DWIPositive and DWINegative must have opposite phase-encoding directions"
+  cleanup
   exit 1
 else
   echo -e "$CONTAINER [$(timestamp)] DWIPositive and DWINegative have unrecognized phase-encoding directions"
+  cleanup
   exit 1
 fi
 
@@ -345,6 +350,7 @@ if [[ $pipeline_status_code == 0 ]]; then
   echo -e "${CONTAINER} [$(timestamp)] Diffusion Preprocessing Pipeline Success!"
 else
   echo -e "${CONTAINER} [$(timestamp)] Diffusion Preprocessing Pipeline Failure!"
+  cleanup
   exit 1
 fi
 
