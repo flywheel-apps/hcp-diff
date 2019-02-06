@@ -45,6 +45,7 @@ function parse_config {
 }
 
 FW_CONFIG_DWIName="$(parse_config 'DWIName')"
+FW_CONFIG_DWIName=${FW_CONFIG_DWIName// /_} # Remove spaces from config name
 FW_CONFIG_AnatomyRegDOF="$(parse_config 'AnatomyRegDOF')"
 
 ##############################################################################
