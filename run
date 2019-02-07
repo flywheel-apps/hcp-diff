@@ -225,6 +225,17 @@ done
 
 ###############
 
+# Install FreeSurfer license
+if [[ -e "${FW_INPUT_FreeSurferLicense}" ]]; then
+  echo -e "$CONTAINER Copying user-supplied FreeSurfer license file to ${FREESURFER_HOME}/license.txt"
+  cp -f "${FW_INPUT_FreeSurferLicense}" ${FREESURFER_HOME}/license.txt
+else
+  echo -e "$CONTAINER ERROR: No FreeSurferLicense was supplied! Will not continue!"
+  cleanup
+  exit 1
+fi
+
+
 # Extract some info from .json saved in hcpstruct zip file
 StructConfigFile="hcpstruct_config.json"
 unzip -p ${StructZipFile} '*hcpstruct_config.json' > ${StructConfigFile}
@@ -240,13 +251,6 @@ if [[ -e "${FW_INPUT_GradientCoeff}" ]]; then
   GradientDistortionCoeffs="${FW_INPUT_GradientCoeff}"
   #TODO: add "siemens" vs "GE" to pipeline for gradient unwarping
   #GradientDistortionCoeffs_vendor="siemens"
-fi
-
-
-# Install FreeSurfer license
-if [[ -e "${FW_INPUT_FreeSurferLicense}" ]]; then
-  echo -e "$CONTAINER Copying user-supplied FreeSurfer license file to ${FREESURFER_HOME}/license.txt"
-  cp -f "${FW_INPUT_FreeSurferLicense}" ${FREESURFER_HOME}/license.txt
 fi
 
 
@@ -324,8 +328,6 @@ echo -e "${CONTAINER} [$(timestamp)] Starting: Diffusion Preprocessing Pipeline 
 #Option to restrict the number of threads for eddy_openmp
 #export OMP_NUM_THREADS=1
 
-pipeline_status_code=0
-
 set -x
 ${RUN_DIFF} ${FSLDIR}/bin/fsl_sub ${QUEUE} ${FSLSUBOPTIONS} \
    ${HCPPIPEDIR}/DiffusionPreprocessing/DiffPreprocPipeline.sh \
@@ -342,9 +344,10 @@ ${RUN_DIFF} ${FSLDIR}/bin/fsl_sub ${QUEUE} ${FSLSUBOPTIONS} \
     --combine-data-flag="${CombineDataFlag}" \
     --extra-eddy-arg="${ExtraEddyArgs}" ${EddyNonGpuArg} \
     --printcom=$PRINTCOM
-set +x
 
 pipeline_status_code=$?
+
+set +x
 
 if [[ $pipeline_status_code == 0 ]]; then
   echo -e "${CONTAINER} [$(timestamp)] Diffusion Preprocessing Pipeline Success!"
@@ -372,7 +375,16 @@ ${RUN_QC} ${SCRIPT_DIR}/hcpdiff_qc_mosaic.sh \
   ${DWIName} \
   ${qc_image_root} > ${LogFileDirFull}/diffusionqc.log
 
+qc_exit_staus = $?
 set +x
+
+if [[ $qc_exit_staus == 0 ]]; then
+  echo -e "${CONTAINER} [$(timestamp)] QA Pipeline Success!"
+else
+  echo -e "${CONTAINER} [$(timestamp)] QA Pipeline Failure!"
+  cleanup
+  exit 1
+fi
 
 ################################################################################
 # Clean-up and prepare outputs
@@ -396,6 +408,7 @@ rm -f ${FilesToRemove}
 OUTPUT_CONFIG_FILE=${StudyFolder}/${Subject}/${Subject}_${DWIName}_hcpdiff_config.json
 jq -r '.config.Subject = "'$Subject'" | .config | {config: .}' $CONFIG_FILE > ${OUTPUT_CONFIG_FILE}
 
+
 # If pipeline successful, zip outputs and clean up
 outputzipname=${Subject}_${DWIName}_hcpdiff.zip
 echo -e "${CONTAINER} [$(timestamp)] Zipping output file ${outputzipname}"
@@ -403,6 +416,7 @@ ziplistfile=${OUTPUT_DIR}/${outputzipname}.list.txt
 rm -f ${ziplistfile}
 rm -f ${OUTPUT_DIR}/${outputzipname}
 cd ${StudyFolder}
+
 # include all remaining files in functional output zip
 find ${Subject} -type f > ${ziplistfile}
 cat ${ziplistfile} | zip ${OUTPUT_DIR}/${outputzipname} -@ > ${OUTPUT_DIR}/${outputzipname}.log
