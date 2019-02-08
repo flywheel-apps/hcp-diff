@@ -375,7 +375,8 @@ ${RUN_QC} ${SCRIPT_DIR}/hcpdiff_qc_mosaic.sh \
   ${DWIName} \
   ${qc_image_root} > ${LogFileDirFull}/diffusionqc.log
 
-qc_exit_staus = $?
+qc_exit_staus=$?
+
 set +x
 
 if [[ $qc_exit_staus == 0 ]]; then
@@ -421,6 +422,9 @@ cd ${StudyFolder}
 find ${Subject} -type f > ${ziplistfile}
 cat ${ziplistfile} | zip ${OUTPUT_DIR}/${outputzipname} -@ > ${OUTPUT_DIR}/${outputzipname}.log
 rm -f ${ziplistfile}
+
+# Copy log files to top level
+for l in $(find ${LogFileDir}/* -type f); do cp "$l" ${OUTPUT_DIR}/$(basename "${l}").log; done
 
 # zip pipeline logs
 logzipname=pipeline_logs.zip

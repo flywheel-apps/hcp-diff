@@ -8,13 +8,13 @@ cleanup () {
   out_dir=/flywheel/v0/output/
   logdir=/flywheel/v0/output/logs
   if [[ -d ${logdir} ]]; then
-    echo "zipping logs..."
-    cd /flywheel/v0/output
-    zip -r /tmp/logs.zip ${logdir}
+    echo "preserving logs..."
+    cp -a $logdir /tmp/
   fi
-  echo -e "Cleaning up $1"
+  echo -e "Cleaning up..."
   rm -rf "$out_dir"/*
-  if [[ -e /tmp/logs.zip ]]; then
-    mv /tmp/logs.zip ${out_dir}
+  if [[ -d /tmp/logs ]]; then
+    cd /tmp/logs
+    for i in $(ls -v | grep -v /); do mv "$i" ${out_dir}/"${i}".log; done
   fi
 }
