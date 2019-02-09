@@ -4,3 +4,17 @@ print_decimal_number () { dec=$(echo $2 15 | awk '{print $1}'); echo $1 | awk '{
 timestamp () { date +"%Y-%m-%d %H:%M:%S %Z"; }
 toupper() { echo "$@" | tr '[:lower:]' '[:upper:]'; };
 tolower() { echo "$@" | tr '[:upper:]' '[:lower:]'; };
+cleanup () {
+  out_dir=/flywheel/v0/output/
+  logdir=/flywheel/v0/output/logs
+  if [[ -d ${logdir} ]]; then
+    echo "preserving logs..."
+    cp -a $logdir /tmp/
+  fi
+  echo -e "Cleaning up..."
+  rm -rf "$out_dir"/*
+  if [[ -d /tmp/logs ]]; then
+    cd /tmp/logs
+    for i in $(ls -v | grep -v /); do mv "$i" ${out_dir}/"${i}".log; done
+  fi
+}

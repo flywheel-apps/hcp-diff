@@ -27,13 +27,17 @@ source ${SCRIPT_DIR}/bash_functions.sh # some useful tools
 # options and values from the manifest. Those variables can be found in the
 # manifest.json file within the `config` map.
 
+if [[ -f $CONFIG_FILE ]]; then
+  eval $(jq -r '.inputs | to_entries[] | "FW_INPUT_\(.key)=\(.value.location.path)"' $CONFIG_FILE)
+  echo "$(set | grep FW_INPUT)"
+fi
+
 function parse_config {
   CONFIG_FILE=$FLYWHEEL_BASE/config.json
   MANIFEST_FILE=$FLYWHEEL_BASE/manifest.json
 
   if [[ -f $CONFIG_FILE ]]; then
     echo -e "$(cat $CONFIG_FILE | jq -r '.config.'$1)"
-    eval $(jq -r '.inputs | to_entries[] | "FW_INPUT_\(.key)=\(.value.location.path)"' $CONFIG_FILE)
   else
     CONFIG_FILE=$MANIFEST_FILE
     echo -e "$(cat $MANIFEST_FILE | jq -r '.config.'$1'.default')"
@@ -41,6 +45,7 @@ function parse_config {
 }
 
 FW_CONFIG_DWIName="$(parse_config 'DWIName')"
+FW_CONFIG_DWIName=${FW_CONFIG_DWIName// /_} # Remove spaces from config name
 FW_CONFIG_AnatomyRegDOF="$(parse_config 'AnatomyRegDOF')"
 
 ##############################################################################
@@ -220,12 +225,24 @@ done
 
 ###############
 
+# Install FreeSurfer license
+if [[ -e "${FW_INPUT_FreeSurferLicense}" ]]; then
+  echo -e "$CONTAINER Copying user-supplied FreeSurfer license file to ${FREESURFER_HOME}/license.txt"
+  cp -f "${FW_INPUT_FreeSurferLicense}" ${FREESURFER_HOME}/license.txt
+else
+  echo -e "$CONTAINER ERROR: No FreeSurferLicense was supplied! Will not continue!"
+  cleanup
+  exit 1
+fi
+
+
 # Extract some info from .json saved in hcpstruct zip file
 StructConfigFile="hcpstruct_config.json"
 unzip -p ${StructZipFile} '*hcpstruct_config.json' > ${StructConfigFile}
 hcpstruct_Subject=$(jq -r '.config.Subject // empty' ${StructConfigFile})
 if [[ -z "${hcpstruct_Subject}" ]]; then
   echo -e "$CONTAINER [$(timestamp)] ${StructZipFile} did not contain ${StructConfigFile}!"
+  cleanup
   exit 1
 fi
 
@@ -234,13 +251,6 @@ if [[ -e "${FW_INPUT_GradientCoeff}" ]]; then
   GradientDistortionCoeffs="${FW_INPUT_GradientCoeff}"
   #TODO: add "siemens" vs "GE" to pipeline for gradient unwarping
   #GradientDistortionCoeffs_vendor="siemens"
-fi
-
-
-# Install FreeSurfer license
-if [[ -e "${FW_INPUT_FreeSurferLicense}" ]]; then
-  echo -e "$CONTAINER Copying user-supplied FreeSurfer license file to ${FREESURFER_HOME}/license.txt"
-  cp -f "${FW_INPUT_FreeSurferLicense}" ${FREESURFER_HOME}/license.txt
 fi
 
 
@@ -254,6 +264,7 @@ fi
 
 if [[ -z "${FW_CONFIG_DWIName}" ]]; then
   echo -e "$CONTAINER [$(timestamp)] fMRIName cannot be empty!"
+  cleanup
   exit 1
 else
   # Output name (and prefix) for preprocessed data
@@ -268,6 +279,7 @@ case "${DOF_EPI2T1}" in
     ;;
   *)
     echo -e "$CONTAINER [$(timestamp)] AnatomyRegDOF must be 6 or 12!"
+    cleanup
     exit 1
     ;;
 esac
@@ -289,9 +301,11 @@ elif [[ "${pedirDWI1},${pedirDWI2}" == "y-,y" ]] || [[ "${pedirDWI1},${pedirDWI2
   PEdir=2
 elif [[ "$pedirDWI1" == "$pedirDWI2" ]]; then
   echo -e "$CONTAINER [$(timestamp)] DWIPositive and DWINegative must have opposite phase-encoding directions"
+  cleanup
   exit 1
 else
   echo -e "$CONTAINER [$(timestamp)] DWIPositive and DWINegative have unrecognized phase-encoding directions"
+  cleanup
   exit 1
 fi
 
@@ -314,8 +328,6 @@ echo -e "${CONTAINER} [$(timestamp)] Starting: Diffusion Preprocessing Pipeline 
 #Option to restrict the number of threads for eddy_openmp
 #export OMP_NUM_THREADS=1
 
-pipeline_status_code=0
-
 set -x
 ${RUN_DIFF} ${FSLDIR}/bin/fsl_sub ${QUEUE} ${FSLSUBOPTIONS} \
    ${HCPPIPEDIR}/DiffusionPreprocessing/DiffPreprocPipeline.sh \
@@ -332,14 +344,16 @@ ${RUN_DIFF} ${FSLDIR}/bin/fsl_sub ${QUEUE} ${FSLSUBOPTIONS} \
     --combine-data-flag="${CombineDataFlag}" \
     --extra-eddy-arg="${ExtraEddyArgs}" ${EddyNonGpuArg} \
     --printcom=$PRINTCOM
-set +x
 
 pipeline_status_code=$?
+
+set +x
 
 if [[ $pipeline_status_code == 0 ]]; then
   echo -e "${CONTAINER} [$(timestamp)] Diffusion Preprocessing Pipeline Success!"
 else
   echo -e "${CONTAINER} [$(timestamp)] Diffusion Preprocessing Pipeline Failure!"
+  cleanup
   exit 1
 fi
 
@@ -361,7 +375,17 @@ ${RUN_QC} ${SCRIPT_DIR}/hcpdiff_qc_mosaic.sh \
   ${DWIName} \
   ${qc_image_root} > ${LogFileDirFull}/diffusionqc.log
 
+qc_exit_staus=$?
+
 set +x
+
+if [[ $qc_exit_staus == 0 ]]; then
+  echo -e "${CONTAINER} [$(timestamp)] QA Pipeline Success!"
+else
+  echo -e "${CONTAINER} [$(timestamp)] QA Pipeline Failure!"
+  cleanup
+  exit 1
+fi
 
 ################################################################################
 # Clean-up and prepare outputs
@@ -385,6 +409,7 @@ rm -f ${FilesToRemove}
 OUTPUT_CONFIG_FILE=${StudyFolder}/${Subject}/${Subject}_${DWIName}_hcpdiff_config.json
 jq -r '.config.Subject = "'$Subject'" | .config | {config: .}' $CONFIG_FILE > ${OUTPUT_CONFIG_FILE}
 
+
 # If pipeline successful, zip outputs and clean up
 outputzipname=${Subject}_${DWIName}_hcpdiff.zip
 echo -e "${CONTAINER} [$(timestamp)] Zipping output file ${outputzipname}"
@@ -392,10 +417,14 @@ ziplistfile=${OUTPUT_DIR}/${outputzipname}.list.txt
 rm -f ${ziplistfile}
 rm -f ${OUTPUT_DIR}/${outputzipname}
 cd ${StudyFolder}
+
 # include all remaining files in functional output zip
 find ${Subject} -type f > ${ziplistfile}
 cat ${ziplistfile} | zip ${OUTPUT_DIR}/${outputzipname} -@ > ${OUTPUT_DIR}/${outputzipname}.log
 rm -f ${ziplistfile}
+
+# Copy log files to top level
+for l in $(find ${LogFileDir}/* -type f); do cp "$l" ${OUTPUT_DIR}/$(basename "${l}").log; done
 
 # zip pipeline logs
 logzipname=pipeline_logs.zip
