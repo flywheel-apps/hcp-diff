@@ -15,15 +15,15 @@ if __name__ == '__main__':
 
     context.log_config()
 
-    # This gear will use a "custom_dict" dictionary as a custom-user field 
+    # This gear will use a "gear_dict" dictionary as a custom-user field 
     # on the gear context.
-    context.custom_dict ={}
+    context.gear_dict ={}
 
     # grab environment for gear
     with open('/tmp/gear_environ.json', 'r') as f:
         environ = json.load(f)
 
-    context.custom_dict['environ'] = environ
+    context.gear_dict['environ'] = environ
 
     try: # To Build/Validate/Execute CPAC commands
         args.build(context)

@@ -10,7 +10,8 @@ def save_config(context):
     # - add/update .config.Subject since it might later be pulled from other session metadata
     # - This jq call does the value replacement, then selects just .config but stores it back into a
     #    new element called ".config" so the new file can be read as though it was flywheel config.json
-    hcpstruct_config={}
+    config = {}
+    hcpstruct_config={'config': config}
     for key in [
         'RegName',
         'Subject',
@@ -20,20 +21,20 @@ def save_config(context):
         'LowResMesh'
     ]:
         if key in context.config.keys():
-            hcpstruct_config[key]=context.config[key]
+            config[key]=context.config[key]
 
     with open(op.join(context.work_dir,context.config['Subject'],
             context.config['Subject']+'_hcpfunc_config.json'),'w') as f:
-        json.dump(hcpstruct_config,f)
+        json.dump(hcpstruct_config,f,indent=4)
 
 def preserve_whitelist_files(context):
-    for fl in context.custom_dict['whitelist']:
-        if not context.custom_dict['dry-run']:
+    for fl in context.gear_dict['whitelist']:
+        if not context.gear_dict['dry-run']:
             context.log.info('Copying file to output: {}'.format(fl))
             shutil.copy(fl,context.output_dir)
             
 def zip_output(context):
-    environ = context.custom_dict['environ']
+    environ = context.gear_dict['environ']
     outputzipname=context.config['Subject']+'_hcpfunc.zip'
     context.log.info('Zipping output file {}'.format(outputzipname))
     os.chdir(context.work_dir)
@@ -48,7 +49,7 @@ def zip_output(context):
                op.join(context.output_dir,outputzipname+'.log')]
     command = ' '.join(command)
     context.log.info("The ZIP command is:\n"+command)
-    if not context.custom_dict['dry-run']:
+    if not context.gear_dict['dry-run']:
         p = sp.Popen(command, stdout=sp.PIPE, stderr=sp.PIPE, shell=True,
                     universal_newlines=True, env=environ)
         # Wait for Popen call to finish
@@ -56,7 +57,7 @@ def zip_output(context):
 
 def zip_pipeline_logs(context):
     # zip pipeline logs
-    environ = context.custom_dict['environ']
+    environ = context.gear_dict['environ']
     logzipname='pipeline_logs.zip'
     context.log.info('Zipping pipeline logs to {}'.format(logzipname))
     os.chdir(context.work_dir)
@@ -71,7 +72,7 @@ def zip_pipeline_logs(context):
              op.join(context.output_dir,logzipname+'.log')]
     command = ' '.join(command)
     context.log.info("The ZIP command is:\n"+command)
-    if not context.custom_dict['dry-run']:         
+    if not context.gear_dict['dry-run']:         
         p = sp.Popen(command, stdout=sp.PIPE, stderr=sp.PIPE, shell=True,
                     universal_newlines=True, env=environ)
         # Wait for Popen call to finish
@@ -93,8 +94,8 @@ def cleanup(context):
     zip_pipeline_logs(context)
     preserve_whitelist_files(context)
     # Write Metadata to file
-    if 'analysis' in context.custom_dict['metadata'].keys():
-        info = context.custom_dict['metadata']['analysis']['info']
+    if 'analysis' in context.gear_dict['metadata'].keys():
+        info = context.gear_dict['metadata']['analysis']['info']
         ## TODO: The below is a work around until we get the .metadata.json 
         ## file functionality working
         # Initialize the flywheel client
