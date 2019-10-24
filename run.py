@@ -5,7 +5,6 @@ from utils import args, results
 
 import flywheel
 from utils.custom_logger import get_custom_logger
-import custom_gear_utils as cgu
 
 if __name__ == '__main__':
     # Preamble: take care of all gear-typical activities.

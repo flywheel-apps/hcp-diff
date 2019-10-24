@@ -63,8 +63,10 @@ def exec_command(context,command,shell=False,stdout_msg=None):
         # The 'shell' parameter is needed for bash output redirects 
         # (e.g. >,>>,&>)
         if shell:
-            command = ' '.join(command)
-        result = sp.Popen(command, stdout=sp.PIPE, stderr=sp.PIPE,
+            mod_command = ' '.join(command)
+        else:
+            mod_command = command
+        result = sp.Popen(mod_command, stdout=sp.PIPE, stderr=sp.PIPE,
                         universal_newlines=True, env=environ, shell=shell)
 
         stdout, stderr = result.communicate()
