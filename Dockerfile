@@ -92,6 +92,10 @@ ENV OS Linux \
 ENV MSMBINDIR=${HCPPIPEDIR}/MSMBinaries
 
 #############################################
+# Copy additional scripts and scenes
+COPY diff_utils ${FLYWHEEL}/utils
+COPY diff_scripts /tmp/scripts
+COPY diff_scripts/patch/DiffPreprocPipeline.sh /opt/HCP-Pipelines/DiffusionPreprocessing/
 
 # Copy executable/manifest to Gear
 COPY run.py ${FLYWHEEL}/run.py
