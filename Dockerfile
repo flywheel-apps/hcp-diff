@@ -3,7 +3,7 @@
 #
 
 # Uses Ubuntu 16.04 LTS
-FROM flywheel/hcp-base:0.1.0_4.0.1
+FROM flywheel/hcp-base:0.2.0_4.0.1
 
 LABEL MAINTAINER="Flywheel <support@flywheel.io>"
 
@@ -93,9 +93,9 @@ ENV MSMBINDIR=${HCPPIPEDIR}/MSMBinaries
 
 #############################################
 # Copy additional scripts and scenes
-COPY diff_utils ${FLYWHEEL}/utils
-COPY diff_scripts /tmp/scripts
-COPY diff_scripts/patch/DiffPreprocPipeline.sh /opt/HCP-Pipelines/DiffusionPreprocessing/
+COPY utils ${FLYWHEEL}/utils
+COPY scripts /tmp/scripts
+COPY scripts/patch/DiffPreprocPipeline.sh /opt/HCP-Pipelines/DiffusionPreprocessing/
 
 # Copy executable/manifest to Gear
 COPY run.py ${FLYWHEEL}/run.py

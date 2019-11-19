@@ -19,6 +19,7 @@
       "suite": "Human Connectome Project"
     }
   },
+  "command": "/flywheel/v0/run.py",
   "inputs": {
     "StructZip": {
       "description": "Zipped output from HCP-Struct pipeline",
