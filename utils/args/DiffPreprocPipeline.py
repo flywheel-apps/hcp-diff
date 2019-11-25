@@ -325,13 +325,14 @@ def validate(context):
                 'was selected. Thus none of their related data is included ' + \
                 'in this analysis.'
             )
-    # if 'DWIPositiveData' in inputs.keys():
-    #     info = inputs['DWIPositiveData']['object']['info']
-    #     if 'EffectiveEchoSpacing' not in info.keys():
-    #         raise Exception(
-    #             '"EffectiveEchoSpacing" iis not found in DWIPositiveData. ' + \
-    #             'This is required to continue! Exiting.'
-    #         )
+            
+    if 'DWIPositiveData' in inputs.keys():
+        info = inputs['DWIPositiveData']['object']['info']
+        if 'EffectiveEchoSpacing' not in info.keys():
+            raise Exception(
+                '"EffectiveEchoSpacing" iis not found in DWIPositiveData. ' + \
+                'This is required to continue! Exiting.'
+            )
 
 def execute(context):
     # We want to take care of delivering the directory structure right away

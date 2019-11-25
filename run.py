@@ -98,7 +98,8 @@ def main():
     #context.gear_dict['remove_files'] = diff_utils.remove_intermediate_files
     ###########################################################################
     # Pipelines common commands
-    QUEUE = ""
+    # "QUEUE" is used differently in FSL 6.0... We don't use it here.
+    # QUEUE = "-q"
     LogFileDirFull = op.join(context.work_dir,'logs')
     os.makedirs(LogFileDirFull, exist_ok=True)
     FSLSUBOPTIONS = "-l "+ LogFileDirFull
