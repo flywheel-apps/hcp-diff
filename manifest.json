@@ -33,7 +33,7 @@
     "FreeSurferLicense": {
       "description": "FreeSurfer license.txt file (found in $FREESURFER_HOME/license.txt)",
       "base": "file",
-      "optional": false
+      "optional": true
     },
     "DWIPositiveData": {
       "description": "Diffusion time series (Positive phase-encode, ie: R>>L or P>>A)",
@@ -280,6 +280,11 @@
       "type": "string",
       "default": "Diffusion",
       "description": "Output name for preprocessed data. *Note: Spaces will be replaced with '_'."
+    },
+    "FREESURFER_LICENSE": {
+        "description": "FreeSurfer license as space-separated string.",
+        "type": "string",
+        "optional": true
     },
     "AnatomyRegDOF": {
       "type": "integer",

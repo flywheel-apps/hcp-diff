@@ -15,13 +15,8 @@ import logging
 log = logging.getLogger(__name__)
 
 def build(context):
-    environ = context.gear_dict['environ']
     config = context.config
     inputs = context._invocation['inputs']
-
-    # Install FreeSurfer license file
-    shutil.copy(context.get_input_path('FreeSurferLicense'),
-                op.join(environ['FREESURFER_HOME'],'license.txt'))
 
     # Default Config Settings
     # DwellTime for DWI volumes
