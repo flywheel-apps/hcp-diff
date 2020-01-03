@@ -325,7 +325,7 @@ def validate(context):
         info = inputs['DWIPositiveData']['object']['info']
         if 'EffectiveEchoSpacing' not in info.keys():
             raise Exception(
-                '"EffectiveEchoSpacing" iis not found in DWIPositiveData. ' + \
+                '"EffectiveEchoSpacing" is not found in DWIPositiveData. ' + \
                 'This is required to continue! Exiting.'
             )
 
