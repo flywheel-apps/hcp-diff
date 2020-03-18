@@ -349,7 +349,7 @@ def execute(context):
     # when we unzip the hcp-struct zip
     environ = context.gear_dict['environ']
     config = context.config
-    os.makedirs(context.work_dir+'/' + config['Subject'], exist_ok=True)
+    os.makedirs(context.work_dir + '/' + config['Subject'], exist_ok=True)
 
     # Start by building command to execute
     command = []
