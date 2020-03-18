@@ -1,12 +1,15 @@
 #!/usr/bin/env python3
 import json
-import os, os.path as op
-from zipfile import ZipFile
+import os
+import os.path as op
 import traceback
-from utils import results, gear_preliminaries, diff_utils
-from utils.args import DiffPreprocPipeline, hcpdiff_qc_mosaic
+from zipfile import ZipFile
 
 import flywheel
+
+from utils import diff_utils, gear_preliminaries, results
+from utils.args import DiffPreprocPipeline, hcpdiff_qc_mosaic
+
 
 def main():
     # Preamble: take care of all gear-typical activities.
@@ -16,18 +19,18 @@ def main():
     gear_preliminaries.initialize_gear(context)
 
     context.log_config()
-    
+
     # Utilize FreeSurfer license from config or project metadata
     try:
         gear_preliminaries.set_freesurfer_license(context)
     except Exception as e:
         context.log.exception(e)
         context.log.fatal(
-            'A valid FreeSurfer license must be present to run.' + \
+            'A valid FreeSurfer license must be present to run.' +
             'Please check your configuration and try again.'
         )
         os.sys.exit(1)
-    
+
     # Before continuing from here, we need to validate the config.json
     # Validate gear configuration against gear manifest
     try:
@@ -51,8 +54,8 @@ def main():
         context.log.exception(e)
         context.log.error('Invalid hcp-struct zip file.')
         os.sys.exit(1)
-    
-    # Ensure the subject_id is set in a valid manner 
+
+    # Ensure the subject_id is set in a valid manner
     # (api, config, or hcp-struct config)
     try:
         gear_preliminaries.set_subject(context)
@@ -75,14 +78,14 @@ def main():
     except Exception as e:
         context.log.exception(e)
         context.log.fatal(
-            'Validating Parameters for the ' + \
+            'Validating Parameters for the ' +
             'Diffusion Preprocessing Pipeline Failed!'
         )
         os.sys.exit(1)
 
     ###########################################################################
     # Unzip hcp-struct results
-    try: 
+    try:
         gear_preliminaries.unzip_hcp(context, hcp_struct_zip_filename)
     except Exception as e:
         context.log.exception(e)
@@ -95,11 +98,11 @@ def main():
     ####################Execute HCP Pipelines ##################################
     # Some hcp-func specific output parameters:
     context.gear_dict['output_config'], \
-    context.gear_dict['output_config_filename'] = \
+        context.gear_dict['output_config_filename'] = \
         diff_utils.configs_to_export(context)
 
-    context.gear_dict['output_zip_name'] =  op.join(
-        context.output_dir, 
+    context.gear_dict['output_zip_name'] = op.join(
+        context.output_dir,
         '{}_{}_hcpdiff.zip'.format(
             context.config['Subject'],
             context.config['DWIName']
@@ -111,18 +114,18 @@ def main():
     # Pipelines common commands
     # "QUEUE" is used differently in FSL 6.0... We don't use it here.
     # QUEUE = "-q"
-    LogFileDirFull = op.join(context.work_dir,'logs')
+    LogFileDirFull = op.join(context.work_dir, 'logs')
     os.makedirs(LogFileDirFull, exist_ok=True)
-    FSLSUBOPTIONS = "-l "+ LogFileDirFull
+    FSLSUBOPTIONS = "-l " + LogFileDirFull
 
-    command_common=[
-        op.join(context.gear_dict['environ']['FSLDIR'],'bin','fsl_sub'),
+    command_common = [
+        op.join(context.gear_dict['environ']['FSLDIR'], 'bin', 'fsl_sub'),
         FSLSUBOPTIONS
     ]
-    
+
     context.gear_dict['command_common'] = command_common
 
-    # Execute fMRI Volume Pipeline
+    # Execute Diffusion Processing Pipeline
     try:
         DiffPreprocPipeline.execute(context)
     except Exception as e:
@@ -132,13 +135,13 @@ def main():
             results.cleanup(context)
         os.sys.exit(1)
 
-    # Generate HCP-Functional QC Images
+    # Generate Diffusion QC Images
     try:
         hcpdiff_qc_mosaic.build(context)
         hcpdiff_qc_mosaic.execute(context)
     except Exception as e:
         context.log.exception(e)
-        context.log.fatal('HCP Functional QC Images has failed!')
+        context.log.fatal('HCP Diffusion QC Images has failed!')
         if context.config['save-on-error']:
             results.cleanup(context)
         exit(1)
@@ -148,6 +151,7 @@ def main():
     results.cleanup(context)
 
     os.sys.exit(0)
+
 
 if __name__ == '__main__':
     main()

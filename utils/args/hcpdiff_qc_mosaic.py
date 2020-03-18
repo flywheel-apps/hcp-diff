@@ -1,30 +1,15 @@
 """
-Builds, validates, and excecutes parameters for the HCP helper script 
+Builds, validates, and excecutes parameters for the HCP helper script
 /tmp/scripts/hcpdiff_qc_mosaic.sh
 part of the hcp-diff gear
 """
 
+import os.path as op
 from collections import OrderedDict
-import os, os.path as op
 
 from .common import build_command_list, exec_command
 
-# qc_scene_root="${StudyFolder}/${Subject}"
 
-# qc_outputdir="${StudyFolder}"
-# mkdir -p ${qc_outputdir}
-
-# qc_image_root="${qc_outputdir}/${Subject}_${DWIName}.hcpdiff_QC."
-
-# set -x
-# ${RUN_QC} ${SCRIPT_DIR}/hcpdiff_qc_mosaic.sh \
-#   ${qc_scene_root} \
-#   ${DWIName} \
-#   ${qc_image_root} > ${LogFileDirFull}/diffusionqc.log
-
-# qc_exit_staus=$?
-
-# set +x
 def build(context):
     config = context.config
     params = OrderedDict()
@@ -37,15 +22,21 @@ def build(context):
     )
     context.gear_dict['QC-Params'] = params
 
+
 def validate(context):
+    """
+    This is to validate the parameters created in `build()`.  A placeholder
+    to ensure component-specific settings are valid.
+    """
     pass
+
 
 def execute(context):
     SCRIPT_DIR = context.gear_dict['SCRIPT_DIR']
-    command = [op.join(SCRIPT_DIR,'hcpdiff_qc_mosaic.sh')]
+    command = [op.join(SCRIPT_DIR, 'hcpdiff_qc_mosaic.sh')]
 
     command = build_command_list(
-        command, context.gear_dict['QC-Params'], include_keys = False
+        command, context.gear_dict['QC-Params'], include_keys=False
     )
 
     command.append('>')
@@ -55,4 +46,4 @@ def execute(context):
                  'in the file "pipeline_logs.zip" upon completion.'
 
     context.log.info('Diffusion QC Image Generation command: \n')
-    exec_command(context, command, shell = True, stdout_msg = stdout_msg)
+    exec_command(context, command, shell=True, stdout_msg=stdout_msg)
