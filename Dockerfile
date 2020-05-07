@@ -33,7 +33,7 @@ ENV CARET7DIR=/opt/workbench/bin_linux64
 
 # Set up specific environment variables for the HCP Pipeline
 ENV FSL_DIR="${FSLDIR}" \ 
-    HCPPIPEDIR=/opt/HCP-Pipelines \ 
+    HCPPIPEDIR=/opt/HCP-Pipelines
 
     #For HCP Pipeline v4.0.1
     ENV MSMBin=${HCPPIPEDIR}/MSMBinaries \ 
