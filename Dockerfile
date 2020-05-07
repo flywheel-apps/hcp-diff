@@ -65,7 +65,7 @@ RUN unset POSIXLY_CORRECT
 # Set up the FreeSurfer environment
 ENV OS=Linux \ 
     FS_OVERRIDE=0 \ 
-    FIX_VERTEX_AREA= \ 
+    FIX_VERTEX_AREA="" \ 
     SUBJECTS_DIR=/opt/freesurfer/subjects \ 
     FSF_OUTPUT_FORMAT=nii.gz \ 
     MNI_DIR=/opt/freesurfer/mni \ 
