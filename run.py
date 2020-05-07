@@ -20,7 +20,7 @@ def main():
 
     context.log_config()
 
-    # Utilize FreeSurfer license from config or project metadata
+    # Utilize FreeSurfer license from config or project metadata.
     try:
         gear_preliminaries.set_freesurfer_license(context)
     except Exception as e:
