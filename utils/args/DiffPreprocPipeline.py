@@ -11,6 +11,7 @@ from collections import OrderedDict
 from tr import tr
 
 from ..diff_utils import make_sym_link
+from ..gear_preliminaries import create_sanitized_filepath
 from .common import build_command_list, exec_command
 
 log = logging.getLogger(__name__)
@@ -26,7 +27,9 @@ def build(context):
 
     # no gradient correction unless we are provided with a .grad file
     if "GradientCoeff" in inputs.keys():
-        GradientDistortionCoeffs = context.get_input_path("GradientCoeff")
+        GradientDistortionCoeffs = create_sanitized_filepath(
+            context.get_input_path("GradientCoeff")
+        )
     else:
         GradientDistortionCoeffs = "NONE"
 
@@ -77,8 +80,12 @@ def build(context):
             "DWINegativeData{}".format(j) in inputs.keys()
         ):
             # Save the filepaths for later:
-            test["data"]["Pos"] = context.get_input_path("DWIPositiveData{}".format(j))
-            test["data"]["Neg"] = context.get_input_path("DWINegativeData{}".format(j))
+            test["data"]["Pos"] = create_sanitized_filepath(
+                context.get_input_path("DWIPositiveData{}".format(j))
+            )
+            test["data"]["Neg"] = create_sanitized_filepath(
+                context.get_input_path("DWINegativeData{}".format(j))
+            )
 
             # We know what we want the end result to be. We append to the list
             # and ensure that it is correct in validate()
@@ -102,29 +109,29 @@ def build(context):
 
             # Grab each of the pos/neg bvec/bval files or make them None
             if "DWIPositiveBvec{}".format(j) in inputs.keys():
-                test["bvecs"]["Pos"] = context.get_input_path(
-                    "DWIPositiveBvec{}".format(j)
+                test["bvecs"]["Pos"] = create_sanitized_filepath(
+                    context.get_input_path("DWIPositiveBvec{}".format(j))
                 )
             else:
                 test["bvecs"]["Pos"] = None
 
             if "DWINegativeBvec{}".format(j) in inputs.keys():
-                test["bvecs"]["Neg"] = context.get_input_path(
-                    "DWINegativeBvec{}".format(j)
+                test["bvecs"]["Neg"] = create_sanitized_filepath(
+                    context.get_input_path("DWINegativeBvec{}".format(j))
                 )
             else:
                 test["bvecs"]["Neg"] = None
 
             if "DWIPositiveBval{}".format(j) in inputs.keys():
-                test["bvals"]["Pos"] = context.get_input_path(
-                    "DWIPositiveBval{}".format(j)
+                test["bvals"]["Pos"] = create_sanitized_filepath(
+                    context.get_input_path("DWIPositiveBval{}".format(j))
                 )
             else:
                 test["bvals"]["Pos"] = None
 
             if "DWINegativeBval{}".format(j) in inputs.keys():
-                test["bvals"]["Neg"] = context.get_input_path(
-                    "DWINegativeBval{}".format(j)
+                test["bvals"]["Neg"] = create_sanitized_filepath(
+                    context.get_input_path("DWINegativeBval{}".format(j))
                 )
             else:
                 test["bvals"]["Neg"] = None
