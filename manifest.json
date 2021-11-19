@@ -34,13 +34,13 @@
         }
     },
     "custom": {
-        "docker-image": "flywheel/hcp-diff:1.0.2_4.3.0",
+        "docker-image": "flywheel/hcp-diff:1.0.4_4.3.0",
         "flywheel": {
             "suite": "Human Connectome Project"
         },
         "gear-builder": {
             "category": "analysis",
-            "image": "flywheel/hcp-diff:1.0.2_4.3.0"
+            "image": "flywheel/hcp-diff:1.0.4_4.3.0"
         }
     },
     "description": "Runs the diffusion preprocessing steps of the Human Connectome Project Minimal Preprocessing Pipeline described in Glasser et al. 2013. This includes correction for EPI distortion (using FSL topup), correction for motion and eddy-current distortion (using FSL eddy), and registration to subject anatomy. In addition, this Gear generates a QC mosaic. NOTE: This Gear requires that the HCP-Structural Gear has been run - the output of which is used here. This Gear allows input of up to 4 diffusion acquisitions.",
@@ -311,5 +311,5 @@
     "name": "hcp-diff",
     "source": "https://github.com/flywheel-apps/hcp-diff",
     "url": "https://github.com/Washington-University/Pipelines",
-    "version": "1.0.2_4.3.0"
+    "version": "1.0.4_4.3.0"
 }
