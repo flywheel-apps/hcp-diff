@@ -3,7 +3,7 @@
 #
 
 # Uses Ubuntu 16.04 LTS
-FROM flywheel/hcp-base:1.0.4_4.3.0
+FROM flywheel/hcp-base:1.0.3_4.3.0rc0
 
 LABEL MAINTAINER="Flywheel <support@flywheel.io>"
 
