@@ -16,13 +16,13 @@ ENV REQUESTS_CA_BUNDLE "/etc/ssl/certs/ca-certificates.crt"
 # FSL 6.0.1 is a part of the base image.  Update the environment variables
 
 # Configure FSL environment
-ENV FSLDIR=/usr/share/fsl/6.0 \ 
+ENV FSLDIR=/usr/share/fsl \ 
     FSL_DIR="${FSLDIR}" \ 
     FSLOUTPUTTYPE=NIFTI_GZ \ 
-    PATH=/usr/share/fsl/6.0/bin:$PATH \ 
+    PATH=/usr/share/fsl/bin:$PATH \ 
     FSLMULTIFILEQUIT=TRUE \ 
-    POSSUMDIR=/usr/share/fsl/6.0 \ 
-    LD_LIBRARY_PATH=/usr/share/fsl/6.0/lib:$LD_LIBRARY_PATH \ 
+    POSSUMDIR=/usr/share/fsl \ 
+    LD_LIBRARY_PATH=/usr/share/fsl/lib:$LD_LIBRARY_PATH \ 
     FSLTCLSH=/usr/bin/tclsh \ 
     FSLWISH=/usr/bin/wish
 
